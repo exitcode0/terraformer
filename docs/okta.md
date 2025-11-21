@@ -18,17 +18,24 @@ $ export OKTA_BASE_URL=okta.com
 
 List of supported Okta services:
 
+*    `admin_role`
+     * `okta_admin_role_custom`
+     * `okta_admin_role_custom_assignments`
 *    `app`
      * `okta_app_auto_login`
      * `okta_app_basic_auth`
      * `okta_app_bookmark`
+     * `okta_app_group_assignments`
      * `okta_app_oauth`
+     * `okta_app_oauth_api_scope`
+     * `okta_app_oauth_role_assignment`
      * `okta_app_saml`
      * `okta_app_secure_password_store`
      * `okta_app_signon_policy`
      * `okta_app_signon_policy_rule`
      * `okta_app_swa`
      * `okta_app_three_field`
+     * `okta_app_user_base_schema_property`
 *    `authorization_server`
      * `okta_auth_server`
      * `okta_auth_server_claim`
@@ -41,7 +48,11 @@ List of supported Okta services:
      * `okta_factor`
 *    `group`
      * `okta_group`
+     * `okta_group_memberships`
+     * `okta_group_owner`
+     * `okta_group_role`
      * `okta_group_rule`
+     * `okta_group_schema_property`
 *    `idp`
      * `okta_idp_oidc`
      * `okta_idp_saml`
@@ -51,12 +62,23 @@ List of supported Okta services:
 *    `network_zone`
      * `okta_network_zone`
 *    `policy`
+     * `okta_policy_device_assurance_android`
+     * `okta_policy_device_assurance_chromeos`
+     * `okta_policy_device_assurance_ios`
+     * `okta_policy_device_assurance_macos`
+     * `okta_policy_device_assurance_windows`
      * `okta_policy_mfa`
      * `okta_policy_password`
      * `okta_policy_rule_mfa`
      * `okta_policy_rule_password`
      * `okta_policy_rule_signon`
      * `okta_policy_signon`
+*    `profile_mapping`
+     * `okta_profile_mapping`
+*    `request_condition`
+     * `okta_request_condition`
+*    `resource_set`
+     * `okta_resource_set`
 *    `template_sms`
      * `okta_template_sms`
 *    `trusted_origin`
