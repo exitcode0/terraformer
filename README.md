@@ -71,6 +71,8 @@ A CLI tool that generates `tf`/`json` and `tfstate` files based on existing infr
         * [Okta](/docs/okta.md)
         * [Auth0](/docs/auth0.md)
         * [AzureAD](/docs/azuread.md)
+    * Security Platform
+        * [CrowdStrike](/docs/crowdstrike.md)
 - [Contributing](#contributing)
 - [Developing](#developing)
 - [Infrastructure](#infrastructure)
