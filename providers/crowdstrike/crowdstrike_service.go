@@ -18,7 +18,6 @@ import (
 	"context"
 
 	"github.com/GoogleCloudPlatform/terraformer/terraformutils"
-	"github.com/crowdstrike/gofalcon/falcon"
 	"github.com/crowdstrike/gofalcon/falcon/client"
 )
 
@@ -26,26 +25,14 @@ type CrowdStrikeService struct { //nolint
 	terraformutils.Service
 }
 
+// Client returns the shared CrowdStrike API client instance
+// This is more efficient than creating a new client for each service
 func (s *CrowdStrikeService) Client() (context.Context, *client.CrowdStrikeAPISpecification, error) {
-	clientID := s.Args["client_id"].(string)
-	clientSecret := s.Args["client_secret"].(string)
-	cloud := s.Args["cloud"].(string)
-	memberCID, _ := s.Args["member_cid"].(string)
-
-	apiConfig := falcon.ApiConfig{
-		ClientId:     clientID,
-		ClientSecret: clientSecret,
-		Cloud:        falcon.Cloud(cloud),
-		Context:      context.Background(),
-	}
-
-	if memberCID != "" {
-		apiConfig.MemberCID = memberCID
-	}
-
-	client, err := falcon.NewClient(&apiConfig)
-	if err != nil {
-		return nil, nil, err
+	// Retrieve the pre-initialized client from Args
+	client, ok := s.Args["client"].(*client.CrowdStrikeAPISpecification)
+	if !ok || client == nil {
+		// Fallback: this shouldn't happen if provider is correctly initialized
+		return nil, nil, terraformutils.NewError("CrowdStrike client not properly initialized")
 	}
 
 	ctx := context.Background()

@@ -15,10 +15,14 @@
 package crowdstrike
 
 import (
+	"context"
 	"errors"
+	"fmt"
 	"os"
 
 	"github.com/GoogleCloudPlatform/terraformer/terraformutils"
+	"github.com/crowdstrike/gofalcon/falcon"
+	"github.com/crowdstrike/gofalcon/falcon/client"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -28,42 +32,77 @@ type CrowdStrikeProvider struct { //nolint
 	clientSecret string
 	cloud        string
 	memberCID    string
+	client       *client.CrowdStrikeAPISpecification
 }
 
+// Init initializes the provider with credentials and creates the Falcon client
 func (p *CrowdStrikeProvider) Init(args []string) error {
-	clientID := os.Getenv("FALCON_CLIENT_ID")
-	if clientID == "" {
-		return errors.New("set FALCON_CLIENT_ID env var")
+	// Parse arguments: [clientID, clientSecret, cloud, memberCID]
+	// Priority: CLI args > Environment variables
+
+	if len(args) >= 1 && args[0] != "" {
+		p.clientID = args[0]
+	} else if clientID := os.Getenv("FALCON_CLIENT_ID"); clientID != "" {
+		p.clientID = clientID
+	} else {
+		return errors.New("FALCON_CLIENT_ID is required. Set via --client-id flag or FALCON_CLIENT_ID environment variable")
 	}
-	p.clientID = clientID
 
-	clientSecret := os.Getenv("FALCON_CLIENT_SECRET")
-	if clientSecret == "" {
-		return errors.New("set FALCON_CLIENT_SECRET env var")
+	if len(args) >= 2 && args[1] != "" {
+		p.clientSecret = args[1]
+	} else if clientSecret := os.Getenv("FALCON_CLIENT_SECRET"); clientSecret != "" {
+		p.clientSecret = clientSecret
+	} else {
+		return errors.New("FALCON_CLIENT_SECRET is required. Set via --client-secret flag or FALCON_CLIENT_SECRET environment variable")
 	}
-	p.clientSecret = clientSecret
 
-	cloud := os.Getenv("FALCON_CLOUD")
-	if cloud == "" {
-		cloud = "autodiscover"
+	if len(args) >= 3 && args[2] != "" {
+		p.cloud = args[2]
+	} else if cloud := os.Getenv("FALCON_CLOUD"); cloud != "" {
+		p.cloud = cloud
+	} else {
+		p.cloud = "autodiscover" // Default value
 	}
-	p.cloud = cloud
 
-	// Member CID is optional for MSSP scenarios
-	memberCID := os.Getenv("FALCON_MEMBER_CID")
-	p.memberCID = memberCID
+	if len(args) >= 4 && args[3] != "" {
+		p.memberCID = args[3]
+	} else if memberCID := os.Getenv("FALCON_MEMBER_CID"); memberCID != "" {
+		p.memberCID = memberCID
+	}
+	// memberCID is optional for MSSP scenarios
 
+	// Initialize the CrowdStrike Falcon client once
+	apiConfig := falcon.ApiConfig{
+		ClientId:     p.clientID,
+		ClientSecret: p.clientSecret,
+		Cloud:        falcon.Cloud(p.cloud),
+		Context:      context.Background(),
+	}
+
+	if p.memberCID != "" {
+		apiConfig.MemberCID = p.memberCID
+	}
+
+	client, err := falcon.NewClient(&apiConfig)
+	if err != nil {
+		return fmt.Errorf("failed to create CrowdStrike Falcon client: %w", err)
+	}
+
+	p.client = client
 	return nil
 }
 
+// GetName returns the provider name
 func (p *CrowdStrikeProvider) GetName() string {
 	return "crowdstrike"
 }
 
+// GetSource returns the Terraform provider source
 func (p *CrowdStrikeProvider) GetSource() string {
 	return "crowdstrike/crowdstrike"
 }
 
+// GetConfig returns the provider configuration for generated Terraform files
 func (p *CrowdStrikeProvider) GetConfig() cty.Value {
 	config := map[string]cty.Value{
 		"client_id":     cty.StringVal(p.clientID),
@@ -78,6 +117,7 @@ func (p *CrowdStrikeProvider) GetConfig() cty.Value {
 	return cty.ObjectVal(config)
 }
 
+// InitService initializes a service with the shared client
 func (p *CrowdStrikeProvider) InitService(serviceName string, verbose bool) error {
 	var isSupported bool
 	if _, isSupported = p.GetSupportedService()[serviceName]; !isSupported {
@@ -88,6 +128,7 @@ func (p *CrowdStrikeProvider) InitService(serviceName string, verbose bool) erro
 	p.Service.SetVerbose(verbose)
 	p.Service.SetProviderName(p.GetName())
 	p.Service.SetArgs(map[string]interface{}{
+		"client":        p.client, // Pass the shared client instance
 		"client_id":     p.clientID,
 		"client_secret": p.clientSecret,
 		"cloud":         p.cloud,
@@ -96,6 +137,7 @@ func (p *CrowdStrikeProvider) InitService(serviceName string, verbose bool) erro
 	return nil
 }
 
+// GetSupportedService returns map of all supported services
 func (p *CrowdStrikeProvider) GetSupportedService() map[string]terraformutils.ServiceGenerator {
 	return map[string]terraformutils.ServiceGenerator{
 		// Priority 1: Core Foundation
@@ -147,6 +189,7 @@ func (p *CrowdStrikeProvider) GetSupportedService() map[string]terraformutils.Se
 	}
 }
 
+// GetResourceConnections returns resource relationship mappings for proper reference generation
 func (p CrowdStrikeProvider) GetResourceConnections() map[string]map[string][]string {
 	return map[string]map[string][]string{
 		"prevention_policy_attachment": {
@@ -155,9 +198,17 @@ func (p CrowdStrikeProvider) GetResourceConnections() map[string]map[string][]st
 		"sensor_update_policy_host_group_attachment": {
 			"host_group": []string{"host_group_id", "id"},
 		},
+		"content_update_policy": {
+			"host_group": []string{"host_group_ids", "id"},
+		},
+		"filevantage_policy": {
+			"host_group":             []string{"host_group_ids", "id"},
+			"filevantage_rule_group": []string{"rule_group_ids", "id"},
+		},
 	}
 }
 
+// GetProviderData returns additional provider data if needed
 func (p CrowdStrikeProvider) GetProviderData(arg ...string) map[string]interface{} {
 	return map[string]interface{}{}
 }
